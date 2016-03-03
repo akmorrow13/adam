@@ -18,8 +18,9 @@
 package org.bdgenomics.adam.models
 
 import org.apache.avro.generic.IndexedRecord
-import org.bdgenomics.formats.avro.{ AlignmentRecord, NucleotideContigFragment, Contig }
+import org.apache.spark.rdd.RDD
 import org.bdgenomics.adam.rdd.ADAMContext._
+import org.bdgenomics.formats.avro.{ Genotype, AlignmentRecord, NucleotideContigFragment, Contig }
 import htsjdk.samtools.{ SamReader, SAMFileHeader, SAMSequenceRecord, SAMSequenceDictionary }
 import scala.collection._
 
@@ -33,6 +34,13 @@ object SequenceDictionary {
    * @return Creates a new, empty SequenceDictionary.
    */
   def empty: SequenceDictionary = new SequenceDictionary()
+
+  def apply(genotypes: RDD[Genotype]): SequenceDictionary = {
+    val recs: RDD[SequenceRecord] = genotypes.map(rec => SequenceRecord(rec.getVariant.getContig.getContigName, (rec.getVariant.end - rec.getVariant.start)))
+    recs.aggregate(SequenceDictionary())(
+      (dict: SequenceDictionary, rec: SequenceRecord) => dict + rec,
+      (dict1: SequenceDictionary, dict2: SequenceDictionary) => dict1 ++ dict2)
+  }
 
   def apply(records: SequenceRecord*): SequenceDictionary = new SequenceDictionary(records.toVector)
   def apply(dict: SAMSequenceDictionary): SequenceDictionary = {

@@ -20,6 +20,8 @@ package org.bdgenomics.adam.rdd
 import java.io.{ File, FileNotFoundException, InputStream }
 import java.util.regex.Pattern
 import htsjdk.samtools.{ IndexedBamInputFormat, SAMFileHeader, ValidationStringency }
+import htsjdk.variant.vcf.VCFHeader
+import org.seqdoop.hadoop_bam.util.VCFHeaderReader
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.IndexedRecord
@@ -56,7 +58,7 @@ import org.bdgenomics.utils.instrumentation.Metrics
 import org.bdgenomics.utils.io.LocalFileByteAccess
 import org.bdgenomics.utils.misc.HadoopUtil
 import org.seqdoop.hadoop_bam._
-import org.seqdoop.hadoop_bam.util.SAMHeaderReader
+import org.seqdoop.hadoop_bam.util.{ SAMHeaderReader, WrapSeekable }
 import scala.collection.JavaConversions._
 import scala.collection.Map
 import scala.reflect.ClassTag
@@ -580,7 +582,60 @@ class ADAMContext(@transient val sc: SparkContext) extends Serializable with Log
     ))
   }
 
-  def loadVcf(filePath: String, sd: Option[SequenceDictionary]): RDD[VariantContext] = {
+  def loadVcf(filePath: String, sd: Option[SequenceDictionary]): VariationRDD[VariantContext] = {
+    val path = new Path(filePath)
+    val fs =
+      Option(
+        FileSystem.get(path.toUri, sc.hadoopConfiguration)
+      ).getOrElse(
+          throw new FileNotFoundException(
+            s"Couldn't find filesystem for ${path.toUri} with Hadoop configuration ${sc.hadoopConfiguration}"
+          )
+        )
+
+    val vcfFiles =
+      Option(
+        if (fs.isDirectory(path)) fs.listStatus(path) else fs.globStatus(path)
+      ).getOrElse(
+          throw new FileNotFoundException(
+            s"Couldn't find any files matching ${path.toUri}"
+          )
+        )
+
+    val seqDict: Option[SequenceDictionary] =
+      sd match {
+        case Some(_) => sd
+        case None => {
+          val srecs = vcfFiles
+            .map(fs => fs.getPath)
+            .flatMap(fp => {
+              try {
+                val stream = WrapSeekable.openPath(fs, fp)
+                val vcfHeader: VCFHeader = VCFHeaderReader.readHeaderFrom(stream)
+                log.info("Loaded header from " + fp)
+                val samSd = vcfHeader.getSequenceDictionary
+                Option(samSd) match {
+                  case Some(_) => Some(SequenceDictionary(samSd))
+                  case None    => None
+                }
+              } catch {
+                case e: Throwable => {
+                  log.error(
+                    s"Loading failed for $fp:n${e.getMessage}\n\t${e.getStackTrace.take(25).map(_.toString).mkString("\n\t")}"
+                  )
+                  None
+                }
+              }
+            })
+
+          if (!srecs.isEmpty) {
+            Option(srecs.reduce((kv1, kv2) => {
+              (kv1 ++ kv2)
+            }))
+          } else None
+        }
+      }
+
     val job = HadoopUtil.newJob(sc)
     val vcc = new VariantContextConverter(sd)
     val records = sc.newAPIHadoopFile(
@@ -590,14 +645,28 @@ class ADAMContext(@transient val sc: SparkContext) extends Serializable with Log
     )
     if (Metrics.isRecording) records.instrument() else records
 
-    records.flatMap(p => vcc.convert(p._2.get))
+    val rdd = records.flatMap(p => vcc.convert(p._2.get))
+    seqDict match {
+      case Some(_) => VariationRDD(rdd, seqDict.get)
+      case None    => VariationRDD(rdd, SequenceDictionary(rdd.flatMap(_.genotypes)))
+    }
+
   }
 
   def loadParquetGenotypes(
     filePath: String,
     predicate: Option[FilterPredicate] = None,
-    projection: Option[Schema] = None): RDD[Genotype] = {
-    loadParquet[Genotype](filePath, predicate, projection)
+    projection: Option[Schema] = None): VariationRDD[Genotype] = {
+    val rdd = loadParquet[Genotype](filePath, predicate, projection)
+
+    val avroSd = loadAvro[Contig]("%s.seqdict".format(filePath),
+      Contig.SCHEMA$)
+
+    // convert avro to sequence dictionary
+    val sd = new SequenceDictionary(avroSd.map(SequenceRecord.fromADAMContig)
+      .toVector)
+
+    VariationRDD(rdd, sd)
   }
 
   def loadParquetVariants(
@@ -605,6 +674,13 @@ class ADAMContext(@transient val sc: SparkContext) extends Serializable with Log
     predicate: Option[FilterPredicate] = None,
     projection: Option[Schema] = None): RDD[Variant] = {
     loadParquet[Variant](filePath, predicate, projection)
+
+    // val avroSd = loadAvro[Contig]("%s.seqdict".format(filePath),
+    //   Contig.SCHEMA$)
+    //
+    // // convert avro to sequence dictionary
+    // val sd = new SequenceDictionary(avroSd.map(SequenceRecord.fromADAMContig)
+    //   .toVector)
   }
 
   def loadFasta(
@@ -794,10 +870,11 @@ class ADAMContext(@transient val sc: SparkContext) extends Serializable with Log
   def loadGenotypes(
     filePath: String,
     projection: Option[Schema] = None,
-    sd: Option[SequenceDictionary] = None): RDD[Genotype] = {
+    sd: Option[SequenceDictionary] = None): VariationRDD[Genotype] = {
     if (filePath.endsWith(".vcf")) {
       log.info("Loading " + filePath + " as VCF, and converting to Genotypes. Projection is ignored.")
-      loadVcf(filePath, sd).flatMap(_.genotypes)
+      val rdd = loadVcf(filePath, sd)
+      VariationRDD[Genotype](rdd.flatMap(_.genotypes), rdd.sequences)
     } else {
       log.info("Loading " + filePath + " as Parquet containing Genotypes. Sequence dictionary for translation is ignored.")
       loadParquetGenotypes(filePath, None, projection)
@@ -810,7 +887,7 @@ class ADAMContext(@transient val sc: SparkContext) extends Serializable with Log
     sd: Option[SequenceDictionary] = None): RDD[Variant] = {
     if (filePath.endsWith(".vcf")) {
       log.info("Loading " + filePath + " as VCF, and converting to Variants. Projection is ignored.")
-      loadVcf(filePath, sd).map(_.variant.variant)
+      loadVcf(filePath, sd).rdd.map(_.variant.variant)
     } else {
       log.info("Loading " + filePath + " as Parquet containing Variants. Sequence dictionary for translation is ignored.")
       loadParquetVariants(filePath, None, projection)

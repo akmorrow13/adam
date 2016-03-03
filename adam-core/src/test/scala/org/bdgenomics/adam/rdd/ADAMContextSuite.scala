@@ -270,7 +270,7 @@ class ADAMContextSuite extends ADAMFunSuite {
   sparkTest("can read a small .vcf file") {
     val path = resourcePath("small.vcf")
 
-    val vcs = sc.loadGenotypes(path).toVariantContext.collect.sortBy(_.position)
+    val vcs = sc.loadGenotypes(path).rdd.toVariantContext.collect.sortBy(_.position)
     assert(vcs.size === 5)
 
     val vc = vcs.head
@@ -279,6 +279,14 @@ class ADAMContextSuite extends ADAMFunSuite {
     val gt = vc.genotypes.head
     assert(gt.getVariantCallingAnnotations != null)
     assert(gt.getReadDepth === 20)
+  }
+
+  sparkTest("correctly saves sequence dictionary .vcf file") {
+    val path = resourcePath("small.vcf")
+
+    val dict = sc.loadGenotypes(path).sequences
+    assert(dict.records.size == 1)
+
   }
 
   (1 to 4) foreach { testNumber =>

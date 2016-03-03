@@ -30,9 +30,11 @@ import org.bdgenomics.adam.models.{
   VariantContext
 }
 import org.bdgenomics.adam.rdd.ADAMSequenceDictionaryRDDAggregator
+import org.bdgenomics.adam.rdd.ADAMContext._
 import org.bdgenomics.adam.rich.RichVariant
 import org.bdgenomics.adam.rich.RichGenotype._
-import org.bdgenomics.formats.avro.{ Genotype, GenotypeType, DatabaseVariantAnnotation }
+import org.bdgenomics.formats.avro.{ Contig, Genotype, DatabaseVariantAnnotation }
+import org.bdgenomics.utils.cli._
 import org.bdgenomics.utils.misc.HadoopUtil
 import org.seqdoop.hadoop_bam._
 
@@ -65,6 +67,50 @@ class VariantContextRDDFunctions(rdd: RDD[VariantContext]) extends ADAMSequenceD
       .distinct
       .collect()
       .toList
+  }
+
+  /**
+   * Saves AlignmentRecords as a directory of Parquet files.
+   *
+   * The RDD is written as a directory of Parquet files, with
+   * Parquet configuration described by the input param args.
+   * The provided sequence dictionary is written at args.outputPath.seqdict
+   * while the provided record group dictionary is written at
+   * args.outputPath.rgdict. These two files are written as Avro binary.
+   *
+   * @param args Save configuration arguments.
+   * @param sd Sequence dictionary describing the contigs these reads are
+   *   aligned to.
+   * @param rgd Record group dictionary describing the record groups these
+   *   reads are from.
+   *
+   * @see adamSave
+   * @see adamAlignedRecordSave
+   */
+  def saveAsParquet(args: ParquetSaveArgs,
+                    onlyVariants: Boolean,
+                    sd: SequenceDictionary) = {
+    // convert sequence dictionary and record group dictionaries to avro form
+    val contigs = sd.records
+      .map(SequenceRecord.toADAMContig)
+      .toSeq
+
+    val specificRDD =
+      if (onlyVariants) {
+        val mappedRDD = rdd.map(v => v.variant.variant)
+        mappedRDD.adamParquetSave(args)
+        mappedRDD
+      } else {
+        val mappedRDD = rdd.flatMap(p => p.genotypes)
+        mappedRDD.adamParquetSave(args)
+        mappedRDD
+      }
+
+    // write the sequence dictionary and record group dictionary to disk
+    specificRDD.saveAvro("%s.seqdict".format(args.outputPath),
+      rdd.context,
+      Contig.SCHEMA$,
+      contigs)
   }
 
   /**
