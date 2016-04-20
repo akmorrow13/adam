@@ -15,26 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.bdgenomics.adam.cli
 
-package org.bdgenomics.adam.util
+import org.bdgenomics.adam.rdd.ADAMContext._
+import org.bdgenomics.adam.util.ADAMFunSuite
+import org.bdgenomics.utils.cli.Args4j
 
-import org.bdgenomics.adam.models.{ SequenceDictionary, ReferenceRegion }
+class Reads2CoverageSuite extends ADAMFunSuite {
 
-/**
- * File that contains a reference assembly that can be broadcasted
- */
-trait ReferenceFile extends Serializable {
-  /**
-   * Extract reference sequence from the file.
-   *
-   * @param region The desired ReferenceRegion to extract.
-   * @return The reference sequence at the desired locus.
-   */
-  def extract(region: ReferenceRegion): String
+  sparkTest("correctly calculates coverage from small sam file") {
+    val inputPath = copyResource("artificial.sam")
+    val outputPath = tmpFile("coverage.adam")
 
-  /*
-   * Stores SequenceDictionary for ReferenceFile
-   */
-  def sequences: SequenceDictionary
+    val args: Array[String] = Array(inputPath, outputPath)
+    new Reads2Coverage(Args4j[Reads2CoverageArgs](args)).run(sc)
+    val coverage = sc.loadCoverage(outputPath)
 
+    val pointCoverage = coverage.flatten.rdd.filter(_.start == 30).first
+    assert(pointCoverage.count == 5)
+  }
 }
+
