@@ -150,8 +150,24 @@ object ReferenceRegion {
     }
   }
 
+  /**
+   * Extracts ReferenceRegion from Feature
+   *
+   * @param feature Feature to extract ReferenceRegion from
+   * @return Extracted ReferenceRegion
+   */
   def apply(feature: Feature): ReferenceRegion = {
     new ReferenceRegion(feature.getContigName, feature.getStart, feature.getEnd)
+  }
+
+  /**
+   * Extracts ReferenceRegion from Coverage
+   *
+   * @param coverage Coverage to extract ReferenceRegion from
+   * @return Extracted ReferenceRegion
+   */
+  def apply(coverage: Coverage): ReferenceRegion = {
+    new ReferenceRegion(coverage.contigName, coverage.start, coverage.end)
   }
 }
 
