@@ -34,7 +34,7 @@ import scala.reflect.ClassTag
  * Different implementations will have different performance characteristics -- and new implementations
  * will likely be added in the future, see the notes to each individual method for more details.
  */
-private[rdd] sealed trait BroadcastRegionJoin[T, U, RT] extends RegionJoin[T, U, RT, U] {
+sealed trait BroadcastRegionJoin[T, U, RT] extends RegionJoin[T, U, RT, U] {
 
   /**
    * Performs a region join between two RDDs (broadcast join).
@@ -130,7 +130,7 @@ private[rdd] sealed trait BroadcastRegionJoin[T, U, RT] extends RegionJoin[T, U,
                                 uRdd: RDD[(ReferenceRegion, (ReferenceRegion, U))]): RDD[(RT, U)]
 }
 
-private[rdd] case class InnerBroadcastRegionJoin[T, U]() extends BroadcastRegionJoin[T, U, T] {
+case class InnerBroadcastRegionJoin[T, U]() extends BroadcastRegionJoin[T, U, T] {
 
   protected def joinAndFilterFn(tRdd: RDD[(ReferenceRegion, (ReferenceRegion, T))],
                                 uRdd: RDD[(ReferenceRegion, (ReferenceRegion, U))]): RDD[(T, U)] = {
@@ -156,7 +156,7 @@ private[rdd] case class InnerBroadcastRegionJoin[T, U]() extends BroadcastRegion
   }
 }
 
-private[rdd] case class RightOuterBroadcastRegionJoin[T, U]() extends BroadcastRegionJoin[T, U, Option[T]] {
+case class RightOuterBroadcastRegionJoin[T, U]() extends BroadcastRegionJoin[T, U, Option[T]] {
 
   protected def joinAndFilterFn(tRdd: RDD[(ReferenceRegion, (ReferenceRegion, T))],
                                 uRdd: RDD[(ReferenceRegion, (ReferenceRegion, U))]): RDD[(Option[T], U)] = {

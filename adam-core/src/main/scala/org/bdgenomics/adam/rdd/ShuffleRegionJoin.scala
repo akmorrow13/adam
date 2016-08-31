@@ -25,7 +25,7 @@ import org.bdgenomics.adam.models.{ SequenceDictionary, ReferenceRegion }
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
-private[rdd] sealed trait ShuffleRegionJoin[T, U, RT, RU] extends RegionJoin[T, U, RT, RU] {
+sealed trait ShuffleRegionJoin[T, U, RT, RU] extends RegionJoin[T, U, RT, RU] {
 
   val sd: SequenceDictionary
   val partitionSize: Long
@@ -116,9 +116,9 @@ private[rdd] sealed trait ShuffleRegionJoin[T, U, RT, RU] extends RegionJoin[T, 
                         right: Iterator[((ReferenceRegion, Int), U)]): Iterator[(RT, RU)]
 }
 
-private[rdd] case class InnerShuffleRegionJoin[T, U](sd: SequenceDictionary,
-                                                     partitionSize: Long,
-                                                     @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, T, U] {
+case class InnerShuffleRegionJoin[T, U](sd: SequenceDictionary,
+                                        partitionSize: Long,
+                                        @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, T, U] {
 
   protected def makeIterator(region: ReferenceRegion,
                              left: BufferedIterator[((ReferenceRegion, Int), T)],
@@ -132,9 +132,9 @@ private[rdd] case class InnerShuffleRegionJoin[T, U](sd: SequenceDictionary,
   }
 }
 
-private[rdd] case class LeftOuterShuffleRegionJoin[T, U](sd: SequenceDictionary,
-                                                         partitionSize: Long,
-                                                         @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, T, Option[U]] {
+case class LeftOuterShuffleRegionJoin[T, U](sd: SequenceDictionary,
+                                            partitionSize: Long,
+                                            @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, T, Option[U]] {
 
   protected def makeIterator(region: ReferenceRegion,
                              left: BufferedIterator[((ReferenceRegion, Int), T)],
@@ -148,9 +148,9 @@ private[rdd] case class LeftOuterShuffleRegionJoin[T, U](sd: SequenceDictionary,
   }
 }
 
-private[rdd] case class RightOuterShuffleRegionJoin[T, U](sd: SequenceDictionary,
-                                                          partitionSize: Long,
-                                                          @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, Option[T], U] {
+case class RightOuterShuffleRegionJoin[T, U](sd: SequenceDictionary,
+                                             partitionSize: Long,
+                                             @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, Option[T], U] {
 
   protected def makeIterator(region: ReferenceRegion,
                              left: BufferedIterator[((ReferenceRegion, Int), T)],
@@ -164,9 +164,9 @@ private[rdd] case class RightOuterShuffleRegionJoin[T, U](sd: SequenceDictionary
   }
 }
 
-private[rdd] case class FullOuterShuffleRegionJoin[T, U](sd: SequenceDictionary,
-                                                         partitionSize: Long,
-                                                         @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, Option[T], Option[U]] {
+case class FullOuterShuffleRegionJoin[T, U](sd: SequenceDictionary,
+                                            partitionSize: Long,
+                                            @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, Option[T], Option[U]] {
 
   protected def makeIterator(region: ReferenceRegion,
                              left: BufferedIterator[((ReferenceRegion, Int), T)],
@@ -180,9 +180,9 @@ private[rdd] case class FullOuterShuffleRegionJoin[T, U](sd: SequenceDictionary,
   }
 }
 
-private[rdd] case class InnerShuffleRegionJoinAndGroupByLeft[T, U](sd: SequenceDictionary,
-                                                                   partitionSize: Long,
-                                                                   @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, T, Iterable[U]] {
+case class InnerShuffleRegionJoinAndGroupByLeft[T, U](sd: SequenceDictionary,
+                                                      partitionSize: Long,
+                                                      @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, T, Iterable[U]] {
 
   protected def makeIterator(region: ReferenceRegion,
                              left: BufferedIterator[((ReferenceRegion, Int), T)],
@@ -196,9 +196,9 @@ private[rdd] case class InnerShuffleRegionJoinAndGroupByLeft[T, U](sd: SequenceD
   }
 }
 
-private[rdd] case class RightOuterShuffleRegionJoinAndGroupByLeft[T, U](sd: SequenceDictionary,
-                                                                        partitionSize: Long,
-                                                                        @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, Option[T], Iterable[U]] {
+case class RightOuterShuffleRegionJoinAndGroupByLeft[T, U](sd: SequenceDictionary,
+                                                           partitionSize: Long,
+                                                           @transient val sc: SparkContext) extends ShuffleRegionJoin[T, U, Option[T], Iterable[U]] {
 
   protected def makeIterator(region: ReferenceRegion,
                              left: BufferedIterator[((ReferenceRegion, Int), T)],
