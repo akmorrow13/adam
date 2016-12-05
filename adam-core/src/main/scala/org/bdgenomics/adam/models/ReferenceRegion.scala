@@ -20,7 +20,7 @@ package org.bdgenomics.adam.models
 import com.esotericsoftware.kryo.io.{ Input, Output }
 import com.esotericsoftware.kryo.{ Kryo, Serializer }
 import org.bdgenomics.formats.avro._
-import org.bdgenomics.utils.intervaltree.Interval
+import org.bdgenomics.utils.intervalarray.Interval
 
 import scala.math.{ max, min }
 
@@ -237,7 +237,7 @@ case class ReferenceRegion(
   end: Long,
   orientation: Strand = Strand.INDEPENDENT)
     extends Comparable[ReferenceRegion]
-    with Interval {
+    with Interval[ReferenceRegion] {
 
   assert(start >= 0 && end >= start, "Failed when trying to create region %s %d %d on %s strand.".format(referenceName, start, end, orientation))
 
@@ -355,6 +355,18 @@ case class ReferenceRegion(
   def overlaps(other: ReferenceRegion): Boolean = {
     orientation == other.orientation &&
       referenceName == other.referenceName &&
+      end > other.start && start < other.end
+  }
+
+  /**
+   * Checks if our region overlaps (wholly or partially) another region,
+   * independent of strand.
+   *
+   * @param other The region to compare against.
+   * @return True if any section of the two regions overlap.
+   */
+  def covers(other: ReferenceRegion): Boolean = {
+    referenceName == other.referenceName &&
       end > other.start && start < other.end
   }
 
