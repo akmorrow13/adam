@@ -87,6 +87,8 @@ sealed trait ShuffleRegionJoin[T, U, RT, RU] extends RegionJoin[T, U, RT, RU] {
         val hi = bins.value.getEndBin(region)
         (lo to hi).map(i => ((region, i), y))
       })
+    keyedLeft.count
+    keyedRight.count
 
     // Sort each RDD by shuffling the data into the corresponding genome bin
     // and then sorting within each bin by the key, which sorts by ReferenceRegion.
@@ -98,6 +100,8 @@ sealed trait ShuffleRegionJoin[T, U, RT, RU] extends RegionJoin[T, U, RT, RU] {
     val sortedRight: RDD[((ReferenceRegion, Int), U)] =
       keyedRight.repartitionAndSortWithinPartitions(ManualRegionPartitioner(bins.value.numBins))
 
+    sortedLeft.count
+    sortedRight.count
     // Execute the sort-merge join on each partition
     // Note that we do NOT preserve the partitioning, as the ManualRegionPartitioner
     // has no meaning for the return type of RDD[(T, U)].  In fact, how
