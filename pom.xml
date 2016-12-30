@@ -565,6 +565,11 @@
         <artifactId>scala-guice_${scala.version.prefix}</artifactId>
         <version>4.0.1</version>
       </dependency>
+      <dependency>
+        <groupId>com.github.jsr203hadoop</groupId>
+        <artifactId>jsr203hadoop</artifactId>
+        <version>1.0.1</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 

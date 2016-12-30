@@ -185,5 +185,9 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.github.jsr203hadoop</groupId>
+      <artifactId>jsr203hadoop</artifactId>
+    </dependency>
   </dependencies>
 </project>

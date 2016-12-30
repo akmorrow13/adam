@@ -21,11 +21,11 @@ package org.bdgenomics.adam.util
 import htsjdk.samtools.ValidationStringency
 import htsjdk.samtools.reference.{ FastaSequenceIndex, IndexedFastaSequenceFile }
 import java.net.URI
-import java.nio.file.Paths
-import org.apache.hadoop.fs.Path
+import java.nio.file.{ Paths, Path }
 import org.apache.spark.SparkContext
 import org.bdgenomics.adam.models.{ SequenceDictionary, ReferenceRegion }
 import org.bdgenomics.utils.misc.Logging
+import hdfs.jsr203._
 
 /**
  * Loads and extracts sequences directly from indexed fasta or fa files. filePath requires fai index in the
@@ -42,17 +42,18 @@ case class IndexedFastaFile(sc: SparkContext,
   private val ref: IndexedFastaSequenceFile = {
 
     // get absolute path and scheme to create URI
-    val path = new Path(filePath).toString
-    val scheme = new Path(path).getFileSystem(sc.hadoopConfiguration).getScheme
-    val pathWithScheme = s"${scheme}://${path}"
+    val clusterUri: URI = new org.apache.hadoop.fs.Path(filePath).getFileSystem(sc.hadoopConfiguration).getUri
+    print(s"cluster ${clusterUri.toString}")
+    val rootPath: Path = Paths.get(clusterUri)
+    println(s"rootPath ${rootPath.toString}")
 
-    val uri = new URI(pathWithScheme)
+    val x: Path = rootPath.resolve(rootPath.resolve(filePath))
+    val file = Paths.get(x.toString).toFile
 
-    val file = Paths.get(uri).toFile
-    val uriIdx = new URI(pathWithScheme + ".fai")
-    val pathIdx = Paths.get(uriIdx)
+    val y: Path = rootPath.resolve(rootPath.resolve(filePath + ".fai"))
+    val pathIdx = Paths.get(y.toString).toFile
 
-    val idx = new FastaSequenceIndex(pathIdx.toFile)
+    val idx = new FastaSequenceIndex(pathIdx)
     new IndexedFastaSequenceFile(file, idx)
   }
 
