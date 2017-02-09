@@ -18,6 +18,7 @@
 package org.bdgenomics.adam.rdd.fragment
 
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{ Dataset, SQLContext }
 import org.bdgenomics.adam.converters.AlignmentRecordConverter
 import org.bdgenomics.adam.instrumentation.Timers._
 import org.bdgenomics.adam.models.{
@@ -32,6 +33,7 @@ import org.bdgenomics.adam.rdd.read.{
   MarkDuplicates
 }
 import org.bdgenomics.adam.serialization.AvroSerializer
+import org.bdgenomics.adam.sql.{ Fragment => FragmentProduct }
 import org.bdgenomics.formats.avro._
 import org.bdgenomics.utils.interval.array.{
   IntervalArray,
@@ -121,6 +123,28 @@ case class FragmentRDD(rdd: RDD[Fragment],
    */
   protected def replaceRdd(newRdd: RDD[Fragment]): FragmentRDD = {
     copy(rdd = newRdd)
+  }
+
+  /**
+   * @return Creates a SQL Dataset of fragments.
+   */
+  def toDataset(): Dataset[FragmentProduct] = {
+    val sqlContext = SQLContext.getOrCreate(rdd.context)
+    import sqlContext.implicits._
+    sqlContext.createDataset(rdd.map(FragmentProduct.fromAvro))
+  }
+
+  /**
+   * Applies a function that transforms the underlying RDD into a new RDD using
+   * the Spark SQL API.
+   *
+   * @param tFn A function that transforms the underlying RDD as a Dataset.
+   * @return A new RDD where the RDD of genomic data has been replaced, but the
+   *   metadata (sequence dictionary, and etc) is copied without modification.
+   */
+  def transformDataset(
+    tFn: Dataset[FragmentProduct] => Dataset[FragmentProduct]): FragmentRDD = {
+    replaceRdd(tFn(toDataset()).rdd.map(_.toAvro))
   }
 
   /**

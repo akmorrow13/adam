@@ -31,6 +31,8 @@ class FragmentRDDSuite extends ADAMFunSuite {
     val ardd = sc.loadFragments(fragmentsPath)
     val records = ardd.rdd.count
     assert(records === 3)
+    assert(ardd.toDataset.count === 3)
+    assert(ardd.toDataset.rdd.count === 3)
 
     implicit val tFormatter = InterleavedFASTQInFormatter
     implicit val uFormatter = new AnySAMOutFormatter

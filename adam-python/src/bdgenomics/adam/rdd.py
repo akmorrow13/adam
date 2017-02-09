@@ -18,7 +18,7 @@
 
 
 from pyspark.rdd import RDD
-
+from pyspark.sql import DataFrame, SQLContext
 
 from bdgenomics.adam.stringency import LENIENT, _toJava
 
@@ -114,6 +114,14 @@ class AlignmentRecordRDD(GenomicRDD):
     def _replaceRdd(self, newRdd):
 
         return AlignmentRecordRDD(newRdd, self.sc)
+
+    
+    def toDataFrame(self):
+        """
+        :return: Returns a dataframe representing this RDD.
+        """
+        
+        return DataFrame(self._jvmRdd.toDataset().toDF(), SQLContext(self.sc))
 
 
     def toFragments(self):
@@ -550,6 +558,14 @@ class FeatureRDD(GenomicRDD):
         GenomicRDD.__init__(self, jvmRdd, sc)
 
 
+    def toDataFrame(self):
+        """
+        :return: Returns a dataframe representing this RDD.
+        """
+        
+        return DataFrame(self._jvmRdd.toDataset().toDF(), SQLContext(self.sc))
+
+
     def save(self, filePath, asSingleFile = False):
         """
         Saves coverage, autodetecting the file type from the extension.
@@ -600,6 +616,14 @@ class FragmentRDD(GenomicRDD):
         GenomicRDD.__init__(self, jvmRdd, sc)
 
         
+    def toDataFrame(self):
+        """
+        :return: Returns a dataframe representing this RDD.
+        """
+        
+        return DataFrame(self._jvmRdd.toDataset().toDF(), SQLContext(self.sc))
+
+
     def toReads(self):
         """
         Splits up the reads in a Fragment, and creates a new RDD.
@@ -652,6 +676,14 @@ class GenotypeRDD(GenomicRDD):
         """
 
         GenomicRDD.__init__(self, jvmRdd, sc)
+
+
+    def toDataFrame(self):
+        """
+        :return: Returns a dataframe representing this RDD.
+        """
+        
+        return DataFrame(self._jvmRdd.toDataset().toDF(), SQLContext(self.sc))
 
         
     def save(self, filePath):
@@ -720,6 +752,14 @@ class NucleotideContigFragmentRDD(GenomicRDD):
         GenomicRDD.__init__(self, jvmRdd, sc)
 
 
+    def toDataFrame(self):
+        """
+        :return: Returns a dataframe representing this RDD.
+        """
+        
+        return DataFrame(self._jvmRdd.toDataset().toDF(), SQLContext(self.sc))
+
+
     def save(self, fileName):
         """
         Save nucleotide contig fragments as Parquet or FASTA.
@@ -781,6 +821,14 @@ class VariantRDD(GenomicRDD):
         """
 
         GenomicRDD.__init__(self, jvmRdd, sc)
+
+
+    def toDataFrame(self):
+        """
+        :return: Returns a dataframe representing this RDD.
+        """
+        
+        return DataFrame(self._jvmRdd.toDataset().toDF(), SQLContext(self.sc))
 
 
     def save(self, filePath):

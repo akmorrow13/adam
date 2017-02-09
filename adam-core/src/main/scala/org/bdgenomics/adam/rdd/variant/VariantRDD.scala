@@ -21,6 +21,7 @@ import htsjdk.samtools.ValidationStringency
 import htsjdk.variant.vcf.{ VCFHeader, VCFHeaderLine }
 import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{ Dataset, SQLContext }
 import org.bdgenomics.adam.converters.DefaultHeaderLines
 import org.bdgenomics.adam.models.{
   ReferenceRegion,
@@ -34,6 +35,7 @@ import org.bdgenomics.adam.rdd.{
   VCFHeaderUtils
 }
 import org.bdgenomics.adam.serialization.AvroSerializer
+import org.bdgenomics.adam.sql.{ Variant => VariantProduct }
 import org.bdgenomics.formats.avro.{
   Contig,
   Sample,
@@ -102,6 +104,28 @@ case class VariantRDD(rdd: RDD[Variant],
       rdd.context,
       Contig.SCHEMA$,
       contigs)
+  }
+
+  /**
+   * @return Creates a SQL Dataset of variants.
+   */
+  def toDataset(): Dataset[VariantProduct] = {
+    val sqlContext = SQLContext.getOrCreate(rdd.context)
+    import sqlContext.implicits._
+    sqlContext.createDataset(rdd.map(VariantProduct.fromAvro))
+  }
+
+  /**
+   * Applies a function that transforms the underlying RDD into a new RDD using
+   * the Spark SQL API.
+   *
+   * @param tFn A function that transforms the underlying RDD as a Dataset.
+   * @return A new RDD where the RDD of genomic data has been replaced, but the
+   *   metadata (sequence dictionary, and etc) is copied without modification.
+   */
+  def transformDataset(
+    tFn: Dataset[VariantProduct] => Dataset[VariantProduct]): VariantRDD = {
+    replaceRdd(tFn(toDataset()).rdd.map(_.toAvro))
   }
 
   /**

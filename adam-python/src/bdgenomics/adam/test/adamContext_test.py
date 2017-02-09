@@ -31,6 +31,7 @@ class ADAMContextTest(SparkTestCase):
         
         reads = ac.loadAlignments(testFile)
 
+        self.assertEqual(reads.toDataFrame().count(), 20)
         self.assertEqual(reads._jvmRdd.jrdd().count(), 20)
 
 
@@ -41,6 +42,7 @@ class ADAMContextTest(SparkTestCase):
         
         reads = ac.loadFeatures(testFile)
 
+        self.assertEqual(reads.toDataFrame().count(), 15)
         self.assertEqual(reads._jvmRdd.jrdd().count(), 15)
 
 
@@ -51,6 +53,7 @@ class ADAMContextTest(SparkTestCase):
         
         reads = ac.loadFeatures(testFile)
 
+        self.assertEqual(reads.toDataFrame().count(), 10)
         self.assertEqual(reads._jvmRdd.jrdd().count(), 10)
 
 
@@ -61,6 +64,7 @@ class ADAMContextTest(SparkTestCase):
         
         reads = ac.loadFeatures(testFile)
 
+        self.assertEqual(reads.toDataFrame().count(), 10)
         self.assertEqual(reads._jvmRdd.jrdd().count(), 10)
 
 
@@ -72,6 +76,7 @@ class ADAMContextTest(SparkTestCase):
         
         reads = ac.loadFeatures(testFile)
 
+        self.assertEqual(reads.toDataFrame().count(), 369)
         self.assertEqual(reads._jvmRdd.jrdd().count(), 369)
 
 
@@ -83,6 +88,7 @@ class ADAMContextTest(SparkTestCase):
         
         reads = ac.loadGenotypes(testFile)
 
+        self.assertEqual(reads.toDataFrame().count(), 18)
         self.assertEqual(reads._jvmRdd.jrdd().count(), 18)
         
 
@@ -94,6 +100,7 @@ class ADAMContextTest(SparkTestCase):
         
         reads = ac.loadVariants(testFile)
 
+        self.assertEqual(reads.toDataFrame().count(), 6)
         self.assertEqual(reads._jvmRdd.jrdd().count(), 6)
 
 
@@ -105,4 +112,5 @@ class ADAMContextTest(SparkTestCase):
         
         reads = ac.loadSequence(testFile)
 
+        self.assertEqual(reads.toDataFrame().count(), 1)
         self.assertEqual(reads._jvmRdd.jrdd().count(), 1)

@@ -77,8 +77,10 @@ class ADAMContextSuite extends ADAMFunSuite {
 
   sparkTest("can read a small .SAM file") {
     val path = testFile("small.sam")
-    val reads: RDD[AlignmentRecord] = sc.loadAlignments(path).rdd
-    assert(reads.count() === 20)
+    val reads = sc.loadAlignments(path)
+    assert(reads.rdd.count() === 20)
+    assert(reads.toDataset.count === 20)
+    assert(reads.toDataset.rdd.count === 20)
   }
 
   sparkTest("can read a small .CRAM file") {
@@ -117,8 +119,10 @@ class ADAMContextSuite extends ADAMFunSuite {
 
   sparkTest("Can read a .gtf file") {
     val path = testFile("Homo_sapiens.GRCh37.75.trun20.gtf")
-    val features: RDD[Feature] = sc.loadFeatures(path).rdd
-    assert(features.count === 15)
+    val features = sc.loadFeatures(path)
+    assert(features.rdd.count === 15)
+    assert(features.toDataset.count === 15)
+    assert(features.toDataset.rdd.count === 15)
   }
 
   sparkTest("Can read a .bed file") {
@@ -283,6 +287,8 @@ class ADAMContextSuite extends ADAMFunSuite {
 
     val variants = sc.loadVariants(path)
     assert(variants.rdd.count === 681)
+    assert(variants.toDataset.count === 681)
+    assert(variants.toDataset.rdd.count === 681)
 
     val loc = tmpLocation()
     variants.saveAsParquet(loc, 1024, 1024) // force more than one row group (block)

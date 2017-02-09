@@ -21,6 +21,7 @@ import com.google.common.collect.ComparisonChain
 import java.util.Comparator
 import org.apache.hadoop.fs.{ FileSystem, Path }
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{ Dataset, SQLContext }
 import org.apache.spark.storage.StorageLevel
 import org.bdgenomics.adam.instrumentation.Timers._
 import org.bdgenomics.adam.models._
@@ -31,6 +32,7 @@ import org.bdgenomics.adam.rdd.{
   SAMHeaderWriter
 }
 import org.bdgenomics.adam.serialization.AvroSerializer
+import org.bdgenomics.adam.sql.{ Feature => FeatureProduct }
 import org.bdgenomics.formats.avro.{ Feature, Strand }
 import org.bdgenomics.utils.interval.array.{
   IntervalArray,
@@ -248,6 +250,28 @@ case class FeatureRDD(rdd: RDD[Feature],
   protected def buildTree(rdd: RDD[(ReferenceRegion, Feature)])(
     implicit tTag: ClassTag[Feature]): IntervalArray[ReferenceRegion, Feature] = {
     IntervalArray(rdd, FeatureArray.apply(_, _))
+  }
+
+  /**
+   * @return Creates a SQL Dataset of genotypes.
+   */
+  def toDataset(): Dataset[FeatureProduct] = {
+    val sqlContext = SQLContext.getOrCreate(rdd.context)
+    import sqlContext.implicits._
+    sqlContext.createDataset(rdd.map(FeatureProduct.fromAvro))
+  }
+
+  /**
+   * Applies a function that transforms the underlying RDD into a new RDD using
+   * the Spark SQL API.
+   *
+   * @param tFn A function that transforms the underlying RDD as a Dataset.
+   * @return A new RDD where the RDD of genomic data has been replaced, but the
+   *   metadata (sequence dictionary, and etc) is copied without modification.
+   */
+  def transformDataset(
+    tFn: Dataset[FeatureProduct] => Dataset[FeatureProduct]): FeatureRDD = {
+    replaceRdd(tFn(toDataset()).rdd.map(_.toAvro))
   }
 
   /**

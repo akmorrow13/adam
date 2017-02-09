@@ -20,6 +20,7 @@ package org.bdgenomics.adam.rdd.contig
 import com.google.common.base.Splitter
 import org.apache.spark.api.java.JavaRDD
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{ Dataset, SQLContext }
 import org.bdgenomics.adam.converters.FragmentConverter
 import org.bdgenomics.adam.models.{
   ReferenceRegion,
@@ -30,6 +31,7 @@ import org.bdgenomics.adam.models.{
 import org.bdgenomics.adam.rdd.{ AvroGenomicRDD, JavaSaveArgs }
 import org.bdgenomics.adam.serialization.AvroSerializer
 import org.bdgenomics.adam.util.ReferenceFile
+import org.bdgenomics.adam.sql.{ NucleotideContigFragment => NucleotideContigFragmentProduct }
 import org.bdgenomics.formats.avro.{ AlignmentRecord, NucleotideContigFragment }
 import org.bdgenomics.utils.interval.array.{
   IntervalArray,
@@ -139,6 +141,28 @@ case class NucleotideContigFragmentRDD(
    */
   protected def getReferenceRegions(elem: NucleotideContigFragment): Seq[ReferenceRegion] = {
     ReferenceRegion(elem).toSeq
+  }
+
+  /**
+   * @return Creates a SQL Dataset of contig fragments.
+   */
+  def toDataset(): Dataset[NucleotideContigFragmentProduct] = {
+    val sqlContext = SQLContext.getOrCreate(rdd.context)
+    import sqlContext.implicits._
+    sqlContext.createDataset(rdd.map(NucleotideContigFragmentProduct.fromAvro))
+  }
+
+  /**
+   * Applies a function that transforms the underlying RDD into a new RDD using
+   * the Spark SQL API.
+   *
+   * @param tFn A function that transforms the underlying RDD as a Dataset.
+   * @return A new RDD where the RDD of genomic data has been replaced, but the
+   *   metadata (sequence dictionary, and etc) is copied without modification.
+   */
+  def transformDataset(
+    tFn: Dataset[NucleotideContigFragmentProduct] => Dataset[NucleotideContigFragmentProduct]): NucleotideContigFragmentRDD = {
+    replaceRdd(tFn(toDataset()).rdd.map(_.toAvro))
   }
 
   /**

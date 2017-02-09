@@ -20,6 +20,7 @@ package org.bdgenomics.adam.rdd.variant
 import htsjdk.samtools.ValidationStringency
 import htsjdk.variant.vcf.VCFHeaderLine
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{ Dataset, SQLContext }
 import org.bdgenomics.adam.converters.DefaultHeaderLines
 import org.bdgenomics.adam.models.{
   ReferencePosition,
@@ -31,6 +32,7 @@ import org.bdgenomics.adam.models.{
 import org.bdgenomics.adam.rdd.{ JavaSaveArgs, MultisampleAvroGenomicRDD }
 import org.bdgenomics.adam.rich.RichVariant
 import org.bdgenomics.adam.serialization.AvroSerializer
+import org.bdgenomics.adam.sql.{ Genotype => GenotypeProduct }
 import org.bdgenomics.utils.cli.SaveArgs
 import org.bdgenomics.utils.interval.array.{
   IntervalArray,
@@ -82,6 +84,28 @@ case class GenotypeRDD(rdd: RDD[Genotype],
   protected def buildTree(rdd: RDD[(ReferenceRegion, Genotype)])(
     implicit tTag: ClassTag[Genotype]): IntervalArray[ReferenceRegion, Genotype] = {
     IntervalArray(rdd, GenotypeArray.apply(_, _))
+  }
+
+  /**
+   * @return Creates a SQL Dataset of genotypes.
+   */
+  def toDataset(): Dataset[GenotypeProduct] = {
+    val sqlContext = SQLContext.getOrCreate(rdd.context)
+    import sqlContext.implicits._
+    sqlContext.createDataset(rdd.map(GenotypeProduct.fromAvro))
+  }
+
+  /**
+   * Applies a function that transforms the underlying RDD into a new RDD using
+   * the Spark SQL API.
+   *
+   * @param tFn A function that transforms the underlying RDD as a Dataset.
+   * @return A new RDD where the RDD of genomic data has been replaced, but the
+   *   metadata (sequence dictionary, and etc) is copied without modification.
+   */
+  def transformDataset(
+    tFn: Dataset[GenotypeProduct] => Dataset[GenotypeProduct]): GenotypeRDD = {
+    replaceRdd(tFn(toDataset()).rdd.map(_.toAvro))
   }
 
   /**

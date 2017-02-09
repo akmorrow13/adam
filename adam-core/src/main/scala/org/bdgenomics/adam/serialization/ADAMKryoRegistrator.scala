@@ -277,10 +277,15 @@ class ADAMKryoRegistrator extends KryoRegistrator {
     kryo.register(classOf[org.codehaus.jackson.node.BooleanNode])
     kryo.register(classOf[org.codehaus.jackson.node.TextNode])
 
+    // org.apache.spark
+    kryo.register(classOf[org.apache.spark.sql.catalyst.expressions.UnsafeRow])
+
     // scala
+    kryo.register(classOf[scala.Array[scala.Array[Byte]]])
     kryo.register(classOf[scala.Array[htsjdk.variant.vcf.VCFHeader]])
     kryo.register(classOf[scala.Array[java.lang.Long]])
     kryo.register(classOf[scala.Array[java.lang.Object]])
+    kryo.register(classOf[scala.Array[org.apache.spark.sql.catalyst.InternalRow]])
     kryo.register(classOf[scala.Array[org.bdgenomics.formats.avro.AlignmentRecord]])
     kryo.register(classOf[scala.Array[org.bdgenomics.formats.avro.Contig]])
     kryo.register(classOf[scala.Array[org.bdgenomics.formats.avro.Dbxref]])
