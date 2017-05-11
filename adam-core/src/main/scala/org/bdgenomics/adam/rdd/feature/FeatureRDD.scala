@@ -245,7 +245,7 @@ object FeatureRDD {
  * @param sequences The reference genome this data is aligned to.
  */
 case class FeatureRDD(rdd: RDD[Feature],
-                      sequences: SequenceDictionary) extends AvroGenomicRDD[Feature, FeatureRDD] with Logging {
+                      sequences: SequenceDictionary) extends AvroGenomicRDD[Feature, FeatureProduct, FeatureRDD] with Logging {
 
   protected def buildTree(rdd: RDD[(ReferenceRegion, Feature)])(
     implicit tTag: ClassTag[Feature]): IntervalArray[ReferenceRegion, Feature] = {
@@ -253,9 +253,9 @@ case class FeatureRDD(rdd: RDD[Feature],
   }
 
   /**
-   * @return Creates a SQL Dataset of genotypes.
+   * A SQL Dataset of features.
    */
-  def toDataset(): Dataset[FeatureProduct] = {
+  lazy val dataset: Dataset[FeatureProduct] = {
     val sqlContext = SQLContext.getOrCreate(rdd.context)
     import sqlContext.implicits._
     sqlContext.createDataset(rdd.map(FeatureProduct.fromAvro))
@@ -271,7 +271,7 @@ case class FeatureRDD(rdd: RDD[Feature],
    */
   def transformDataset(
     tFn: Dataset[FeatureProduct] => Dataset[FeatureProduct]): FeatureRDD = {
-    replaceRdd(tFn(toDataset()).rdd.map(_.toAvro))
+    replaceRdd(tFn(dataset).rdd.map(_.toAvro))
   }
 
   /**

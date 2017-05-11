@@ -79,7 +79,7 @@ private[adam] class GenotypeArraySerializer extends IntervalArraySerializer[Refe
 case class GenotypeRDD(rdd: RDD[Genotype],
                        sequences: SequenceDictionary,
                        @transient samples: Seq[Sample],
-                       @transient headerLines: Seq[VCFHeaderLine] = DefaultHeaderLines.allHeaderLines) extends MultisampleAvroGenomicRDD[Genotype, GenotypeRDD] {
+                       @transient headerLines: Seq[VCFHeaderLine] = DefaultHeaderLines.allHeaderLines) extends MultisampleAvroGenomicRDD[Genotype, GenotypeProduct, GenotypeRDD] {
 
   protected def buildTree(rdd: RDD[(ReferenceRegion, Genotype)])(
     implicit tTag: ClassTag[Genotype]): IntervalArray[ReferenceRegion, Genotype] = {
@@ -87,9 +87,9 @@ case class GenotypeRDD(rdd: RDD[Genotype],
   }
 
   /**
-   * @return Creates a SQL Dataset of genotypes.
+   * A SQL Dataset of genotypes.
    */
-  def toDataset(): Dataset[GenotypeProduct] = {
+  lazy val dataset: Dataset[GenotypeProduct] = {
     val sqlContext = SQLContext.getOrCreate(rdd.context)
     import sqlContext.implicits._
     sqlContext.createDataset(rdd.map(GenotypeProduct.fromAvro))
@@ -105,7 +105,7 @@ case class GenotypeRDD(rdd: RDD[Genotype],
    */
   def transformDataset(
     tFn: Dataset[GenotypeProduct] => Dataset[GenotypeProduct]): GenotypeRDD = {
-    replaceRdd(tFn(toDataset()).rdd.map(_.toAvro))
+    replaceRdd(tFn(dataset).rdd.map(_.toAvro))
   }
 
   /**

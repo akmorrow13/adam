@@ -54,7 +54,11 @@ import org.bdgenomics.adam.projections.{
 import org.bdgenomics.adam.rdd.contig.NucleotideContigFragmentRDD
 import org.bdgenomics.adam.rdd.feature._
 import org.bdgenomics.adam.rdd.fragment.FragmentRDD
-import org.bdgenomics.adam.rdd.read.{ AlignmentRecordRDD, RepairPartitions }
+import org.bdgenomics.adam.rdd.read.{
+  AlignmentRecordRDD,
+  RepairPartitions,
+  ParquetUnboundAlignmentRecordRDD
+}
 import org.bdgenomics.adam.rdd.variant._
 import org.bdgenomics.adam.rich.RichAlignmentRecord
 import org.bdgenomics.adam.util.FileExtensions._
@@ -800,16 +804,23 @@ class ADAMContext(@transient val sc: SparkContext) extends Serializable with Log
     optPredicate: Option[FilterPredicate] = None,
     optProjection: Option[Schema] = None): AlignmentRecordRDD = {
 
-    // load from disk
-    val rdd = loadParquet[AlignmentRecord](pathName, optPredicate, optProjection)
-
     // convert avro to sequence dictionary
     val sd = loadAvroSequenceDictionary(pathName)
 
     // convert avro to sequence dictionary
     val rgd = loadAvroRecordGroupDictionary(pathName)
 
-    AlignmentRecordRDD(rdd, sd, rgd)
+    (optPredicate, optProjection) match {
+      case (None, None) => {
+        ParquetUnboundAlignmentRecordRDD(sc, pathName, sd, rgd)
+      }
+      case (_, _) => {
+        // load from disk
+        val rdd = loadParquet[AlignmentRecord](pathName, optPredicate, optProjection)
+
+        AlignmentRecordRDD(rdd, sd, rgd)
+      }
+    }
   }
 
   /**

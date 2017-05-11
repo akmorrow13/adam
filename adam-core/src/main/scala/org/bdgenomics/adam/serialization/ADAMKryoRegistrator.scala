@@ -279,6 +279,15 @@ class ADAMKryoRegistrator extends KryoRegistrator {
 
     // org.apache.spark
     kryo.register(classOf[org.apache.spark.sql.catalyst.expressions.UnsafeRow])
+    kryo.register(Class.forName("org.apache.spark.sql.types.BooleanType$"))
+    kryo.register(Class.forName("org.apache.spark.sql.types.DoubleType$"))
+    kryo.register(Class.forName("org.apache.spark.sql.types.FloatType$"))
+    kryo.register(Class.forName("org.apache.spark.sql.types.IntegerType$"))
+    kryo.register(Class.forName("org.apache.spark.sql.types.LongType$"))
+    kryo.register(Class.forName("org.apache.spark.sql.types.StringType$"))
+    kryo.register(classOf[org.apache.spark.sql.types.Metadata])
+    kryo.register(classOf[org.apache.spark.sql.types.StructField])
+    kryo.register(classOf[org.apache.spark.sql.types.StructType])
 
     // scala
     kryo.register(classOf[scala.Array[scala.Array[Byte]]])
@@ -286,6 +295,8 @@ class ADAMKryoRegistrator extends KryoRegistrator {
     kryo.register(classOf[scala.Array[java.lang.Long]])
     kryo.register(classOf[scala.Array[java.lang.Object]])
     kryo.register(classOf[scala.Array[org.apache.spark.sql.catalyst.InternalRow]])
+    kryo.register(classOf[scala.Array[org.apache.spark.sql.types.StructField]])
+    kryo.register(classOf[scala.Array[org.apache.spark.sql.types.StructType]])
     kryo.register(classOf[scala.Array[org.bdgenomics.formats.avro.AlignmentRecord]])
     kryo.register(classOf[scala.Array[org.bdgenomics.formats.avro.Contig]])
     kryo.register(classOf[scala.Array[org.bdgenomics.formats.avro.Dbxref]])

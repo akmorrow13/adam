@@ -20,13 +20,14 @@ package org.bdgenomics.adam.rdd.feature
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.serializers.FieldSerializer
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{ Dataset, SQLContext }
 import org.bdgenomics.adam.models.{
   Coverage,
   ReferenceRegion,
   ReferenceRegionSerializer,
   SequenceDictionary
 }
-import org.bdgenomics.adam.rdd.GenomicRDD
+import org.bdgenomics.adam.rdd.GenomicDataset
 import org.bdgenomics.utils.interval.array.{
   IntervalArray,
   IntervalArraySerializer
@@ -67,11 +68,22 @@ private[adam] class CoverageArraySerializer(kryo: Kryo) extends IntervalArraySer
  * @param sequences A dictionary describing the reference genome.
  */
 case class CoverageRDD(rdd: RDD[Coverage],
-                       sequences: SequenceDictionary) extends GenomicRDD[Coverage, CoverageRDD] {
+                       sequences: SequenceDictionary) extends GenomicDataset[Coverage, Coverage, CoverageRDD] {
 
   protected def buildTree(rdd: RDD[(ReferenceRegion, Coverage)])(
     implicit tTag: ClassTag[Coverage]): IntervalArray[ReferenceRegion, Coverage] = {
     IntervalArray(rdd, CoverageArray.apply(_, _))
+  }
+
+  lazy val dataset: Dataset[Coverage] = {
+    val sqlContext = SQLContext.getOrCreate(rdd.context)
+    import sqlContext.implicits._
+    sqlContext.createDataset(rdd)
+  }
+
+  def transformDataset(
+    tFn: Dataset[Coverage] => Dataset[Coverage]): CoverageRDD = {
+    copy(rdd = tFn(dataset).rdd)
   }
 
   /**

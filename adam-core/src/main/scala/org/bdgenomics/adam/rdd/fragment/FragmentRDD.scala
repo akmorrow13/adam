@@ -107,7 +107,7 @@ object FragmentRDD {
  */
 case class FragmentRDD(rdd: RDD[Fragment],
                        sequences: SequenceDictionary,
-                       recordGroups: RecordGroupDictionary) extends AvroReadGroupGenomicRDD[Fragment, FragmentRDD] {
+                       recordGroups: RecordGroupDictionary) extends AvroReadGroupGenomicRDD[Fragment, FragmentProduct, FragmentRDD] {
 
   protected def buildTree(rdd: RDD[(ReferenceRegion, Fragment)])(
     implicit tTag: ClassTag[Fragment]): IntervalArray[ReferenceRegion, Fragment] = {
@@ -126,9 +126,9 @@ case class FragmentRDD(rdd: RDD[Fragment],
   }
 
   /**
-   * @return Creates a SQL Dataset of fragments.
+   * A SQL Dataset of fragments.
    */
-  def toDataset(): Dataset[FragmentProduct] = {
+  lazy val dataset: Dataset[FragmentProduct] = {
     val sqlContext = SQLContext.getOrCreate(rdd.context)
     import sqlContext.implicits._
     sqlContext.createDataset(rdd.map(FragmentProduct.fromAvro))
@@ -144,7 +144,7 @@ case class FragmentRDD(rdd: RDD[Fragment],
    */
   def transformDataset(
     tFn: Dataset[FragmentProduct] => Dataset[FragmentProduct]): FragmentRDD = {
-    replaceRdd(tFn(toDataset()).rdd.map(_.toAvro))
+    replaceRdd(tFn(dataset).rdd.map(_.toAvro))
   }
 
   /**

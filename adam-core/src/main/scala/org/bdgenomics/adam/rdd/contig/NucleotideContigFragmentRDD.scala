@@ -105,7 +105,7 @@ private[rdd] object NucleotideContigFragmentRDD extends Serializable {
  */
 case class NucleotideContigFragmentRDD(
     rdd: RDD[NucleotideContigFragment],
-    sequences: SequenceDictionary) extends AvroGenomicRDD[NucleotideContigFragment, NucleotideContigFragmentRDD] with ReferenceFile {
+    sequences: SequenceDictionary) extends AvroGenomicRDD[NucleotideContigFragment, NucleotideContigFragmentProduct, NucleotideContigFragmentRDD] with ReferenceFile {
 
   protected def buildTree(rdd: RDD[(ReferenceRegion, NucleotideContigFragment)])(
     implicit tTag: ClassTag[NucleotideContigFragment]): IntervalArray[ReferenceRegion, NucleotideContigFragment] = {
@@ -144,9 +144,9 @@ case class NucleotideContigFragmentRDD(
   }
 
   /**
-   * @return Creates a SQL Dataset of contig fragments.
+   * A SQL Dataset of contig fragments.
    */
-  def toDataset(): Dataset[NucleotideContigFragmentProduct] = {
+  lazy val dataset: Dataset[NucleotideContigFragmentProduct] = {
     val sqlContext = SQLContext.getOrCreate(rdd.context)
     import sqlContext.implicits._
     sqlContext.createDataset(rdd.map(NucleotideContigFragmentProduct.fromAvro))
@@ -162,7 +162,7 @@ case class NucleotideContigFragmentRDD(
    */
   def transformDataset(
     tFn: Dataset[NucleotideContigFragmentProduct] => Dataset[NucleotideContigFragmentProduct]): NucleotideContigFragmentRDD = {
-    replaceRdd(tFn(toDataset()).rdd.map(_.toAvro))
+    replaceRdd(tFn(dataset).rdd.map(_.toAvro))
   }
 
   /**

@@ -84,7 +84,7 @@ private[adam] class VariantArraySerializer extends IntervalArraySerializer[Refer
  */
 case class VariantRDD(rdd: RDD[Variant],
                       sequences: SequenceDictionary,
-                      @transient headerLines: Seq[VCFHeaderLine] = DefaultHeaderLines.allHeaderLines) extends AvroGenomicRDD[Variant, VariantRDD] {
+                      @transient headerLines: Seq[VCFHeaderLine] = DefaultHeaderLines.allHeaderLines) extends AvroGenomicRDD[Variant, VariantProduct, VariantRDD] {
 
   protected def buildTree(rdd: RDD[(ReferenceRegion, Variant)])(
     implicit tTag: ClassTag[Variant]): IntervalArray[ReferenceRegion, Variant] = {
@@ -107,9 +107,9 @@ case class VariantRDD(rdd: RDD[Variant],
   }
 
   /**
-   * @return Creates a SQL Dataset of variants.
+   * A SQL Dataset of variants.
    */
-  def toDataset(): Dataset[VariantProduct] = {
+  lazy val dataset: Dataset[VariantProduct] = {
     val sqlContext = SQLContext.getOrCreate(rdd.context)
     import sqlContext.implicits._
     sqlContext.createDataset(rdd.map(VariantProduct.fromAvro))
@@ -125,7 +125,7 @@ case class VariantRDD(rdd: RDD[Variant],
    */
   def transformDataset(
     tFn: Dataset[VariantProduct] => Dataset[VariantProduct]): VariantRDD = {
-    replaceRdd(tFn(toDataset()).rdd.map(_.toAvro))
+    replaceRdd(tFn(dataset).rdd.map(_.toAvro))
   }
 
   /**

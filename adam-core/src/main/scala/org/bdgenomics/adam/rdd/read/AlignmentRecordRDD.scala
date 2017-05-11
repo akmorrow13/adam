@@ -25,6 +25,8 @@ import java.net.URI
 import java.nio.file.Paths
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.LongWritable
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.spark.SparkContext
 import org.apache.spark.api.java.JavaRDD
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.MetricsContext._
@@ -98,21 +100,80 @@ object AlignmentRecordRDD {
       SequenceDictionary.empty,
       RecordGroupDictionary.empty)
   }
+
+  def apply(rdd: RDD[AlignmentRecord],
+            sequences: SequenceDictionary,
+            recordGroups: RecordGroupDictionary): AlignmentRecordRDD = {
+    RDDBoundAlignmentRecordRDD(rdd, sequences, recordGroups)
+  }
+
+  def apply(ds: Dataset[AlignmentRecordProduct],
+            sequences: SequenceDictionary,
+            recordGroups: RecordGroupDictionary): AlignmentRecordRDD = {
+    DatasetBoundAlignmentRecordRDD(ds, sequences, recordGroups)
+  }
 }
 
-case class AlignmentRecordRDD(
+case class ParquetUnboundAlignmentRecordRDD private[rdd] (
+    private val sc: SparkContext,
+    private val parquetFilename: String,
+    sequences: SequenceDictionary,
+    recordGroups: RecordGroupDictionary) extends AlignmentRecordRDD {
+
+  lazy val rdd: RDD[AlignmentRecord] = {
+    sc.loadParquet(parquetFilename)
+  }
+
+  lazy val dataset = {
+    val sqlContext = SQLContext.getOrCreate(sc)
+    import sqlContext.implicits._
+    sqlContext.read.parquet(parquetFilename).as[AlignmentRecordProduct]
+  }
+}
+
+case class DatasetBoundAlignmentRecordRDD private[rdd] (
+    dataset: Dataset[AlignmentRecordProduct],
+    sequences: SequenceDictionary,
+    recordGroups: RecordGroupDictionary) extends AlignmentRecordRDD {
+
+  lazy val rdd = dataset.rdd.map(_.toAvro)
+
+  override def saveAsParquet(filePath: String,
+                             blockSize: Int = 128 * 1024 * 1024,
+                             pageSize: Int = 1 * 1024 * 1024,
+                             compressCodec: CompressionCodecName = CompressionCodecName.GZIP,
+                             disableDictionaryEncoding: Boolean = false) {
+    log.warn("Saving directly as Parquet from SQL. Options other than compression codec are ignored.")
+    dataset.toDF()
+      .write
+      .format("parquet")
+      .option("spark.sql.parquet.compression.codec", compressCodec.toString.toLowerCase())
+      .save(filePath)
+    saveMetadata(filePath)
+  }
+
+  override def transformDataset(
+    tFn: Dataset[AlignmentRecordProduct] => Dataset[AlignmentRecordProduct]): AlignmentRecordRDD = {
+    copy(dataset = tFn(dataset))
+  }
+}
+
+case class RDDBoundAlignmentRecordRDD private[rdd] (
     rdd: RDD[AlignmentRecord],
     sequences: SequenceDictionary,
-    recordGroups: RecordGroupDictionary) extends AvroReadGroupGenomicRDD[AlignmentRecord, AlignmentRecordRDD] {
+    recordGroups: RecordGroupDictionary) extends AlignmentRecordRDD {
 
   /**
-   * @return Creates a SQL Dataset of reads.
+   * A SQL Dataset of reads.
    */
-  def toDataset(): Dataset[AlignmentRecordProduct] = {
+  lazy val dataset: Dataset[AlignmentRecordProduct] = {
     val sqlContext = SQLContext.getOrCreate(rdd.context)
     import sqlContext.implicits._
     sqlContext.createDataset(rdd.map(AlignmentRecordProduct.fromAvro))
   }
+}
+
+abstract class AlignmentRecordRDD extends AvroReadGroupGenomicRDD[AlignmentRecord, AlignmentRecordProduct, AlignmentRecordRDD] {
 
   /**
    * Applies a function that transforms the underlying RDD into a new RDD using
@@ -124,7 +185,8 @@ case class AlignmentRecordRDD(
    */
   def transformDataset(
     tFn: Dataset[AlignmentRecordProduct] => Dataset[AlignmentRecordProduct]): AlignmentRecordRDD = {
-    replaceRdd(tFn(toDataset()).rdd.map(_.toAvro))
+    DatasetBoundAlignmentRecordRDD(dataset, sequences, recordGroups)
+      .transformDataset(tFn)
   }
 
   /**
@@ -136,13 +198,13 @@ case class AlignmentRecordRDD(
    */
   protected def replaceRddAndSequences(newRdd: RDD[AlignmentRecord],
                                        newSequences: SequenceDictionary): AlignmentRecordRDD = {
-    AlignmentRecordRDD(newRdd,
+    RDDBoundAlignmentRecordRDD(newRdd,
       newSequences,
       recordGroups)
   }
 
   protected def replaceRdd(newRdd: RDD[AlignmentRecord]): AlignmentRecordRDD = {
-    copy(rdd = newRdd)
+    RDDBoundAlignmentRecordRDD(newRdd, sequences, recordGroups)
   }
 
   protected def buildTree(rdd: RDD[(ReferenceRegion, AlignmentRecord)])(
