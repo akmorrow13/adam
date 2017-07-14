@@ -52,6 +52,7 @@ if [ "$num_jars" -gt "1" ]; then
 fi
 
 ADAM_CLI_JAR="${ASSEMBLY_DIR}/${ASSEMBLY_JARS}"
+echo $ADAM_CLI_JAR
 
 if [ -z "$SPARK_HOME" ]; then
   SPARK_SHELL=$(which spark-shell || echo)
