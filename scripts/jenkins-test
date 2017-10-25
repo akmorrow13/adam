@@ -208,7 +208,7 @@ then
 
     # create a conda environment for python build, if necessary
     uuid=$(uuidgen)
-    conda create -q -n adam-build-${uuid} python=2.7 anaconda
+    conda create -q -n adam-build-${uuid} python=2.7 anaconda jupyter
     source activate adam-build-${uuid}
 
     # what hadoop version are we on? format string for downloading spark assembly
@@ -245,32 +245,40 @@ then
     if [ ${SPARK_VERSION} == 2.2.0 ];
     then
 
-	# make a directory to install SparkR into, and set the R user libs path
-	export R_LIBS_USER=${SPARK_HOME}/local_R_libs
-	mkdir -p ${R_LIBS_USER}
-	R CMD INSTALL \
-	    -l ${R_LIBS_USER} \
-	    ${SPARK_HOME}/R/lib/SparkR/
+        # make a directory to install SparkR into, and set the R user libs path
+        export R_LIBS_USER=${SPARK_HOME}/local_R_libs
+        mkdir -p ${R_LIBS_USER}
+        R CMD INSTALL \
+          -l ${R_LIBS_USER} \
+          ${SPARK_HOME}/R/lib/SparkR/
 
-	export SPARKR_SUBMIT_ARGS="--jars ${ASSEMBLY_DIR}/${ASSEMBLY_JAR} --driver-class-path ${ASSEMBLY_DIR}/${ASSEMBLY_JAR} sparkr-shell"
-    
+        export SPARKR_SUBMIT_ARGS="--jars ${ASSEMBLY_DIR}/${ASSEMBLY_JAR} --driver-class-path ${ASSEMBLY_DIR}/${ASSEMBLY_JAR} sparkr-shell"
+
         # we can run the python build, now that we have a spark executable
-	mvn -U \
-            -P python,r \
-            package \
-            -DskipTests \
-            -Dhadoop.version=${HADOOP_VERSION} \
-            -Dspark.version=${SPARK_VERSION}
+        mvn -U \
+                -P python,r \
+                package \
+                -DskipTests \
+                -Dhadoop.version=${HADOOP_VERSION} \
+                -Dspark.version=${SPARK_VERSION}
 
     else
         # we can run the python build, now that we have a spark executable
-	mvn -U \
-            -P python \
-            package \
-            -DskipTests \
-            -Dhadoop.version=${HADOOP_VERSION} \
-            -Dspark.version=${SPARK_VERSION}
+        mvn -U \
+                -P python \
+                package \
+                -DskipTests \
+                -Dhadoop.version=${HADOOP_VERSION} \
+                -Dspark.version=${SPARK_VERSION}
     fi
+
+    # regression tests for python notebook examples
+    jupyter nbconvert --to python ${PROJECT_ROOT}/scripts/examples/countKmers.ipynb
+    PYTHONSTARTUP=${PROJECT_ROOT}/scripts/examples/countKmers.py ${PROJECT_ROOT}/bin/pyadam
+    PID=$(ps aux | grep "bash ./bin/pyadam" | grep -v "grep" | awk '{print $2}')
+    kill -15 ${PID}
+    rm ${PROJECT_ROOT}/scripts/examples/countKmers.py
+
 
     # copy python targets back
     cp -r adam-python/target ${PROJECT_ROOT}/adam-python/

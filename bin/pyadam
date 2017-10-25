@@ -20,7 +20,7 @@
 set -e
 
 # Figure out where ADAM is installed
-SCRIPT_DIR="$(cd `dirname $0`/..; pwd)"
+export SCRIPT_DIR="$(cd `dirname $0`/..; pwd)"
 
 # Find ADAM cli assembly jar
 ADAM_CLI_JAR=
