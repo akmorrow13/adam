@@ -54,10 +54,33 @@
       <fileMode>0644</fileMode>
     </fileSet>
     <fileSet>
+      <directory>../adam-r</directory>
+      <includes>
+        <include>bdgenomics.adam*.tar.gz</include>
+      </includes>
+      <outputDirectory>r</outputDirectory>
+    </fileSet>
+    <fileSet>
+      <directory>../adam-python</directory>
+      <includes>
+        <include>bdgenomics.adam.egg-info</include>
+      </includes>
+      <outputDirectory>r</outputDirectory>
+    </fileSet>
+    <fileSet>
       <directory>../bin</directory>
       <outputDirectory>bin</outputDirectory>
       <directoryMode>0755</directoryMode>
       <fileMode>0755</fileMode>
+    </fileSet>
+    <fileSet>
+      <directory>../adam-python/dist</directory>
+      <includes>
+        <include>bdgenomics.adam*.egg</include>
+      </includes>
+      <outputDirectory>repo</outputDirectory>
+      <directoryMode>0755</directoryMode>
+      <fileMode>0644</fileMode>
     </fileSet>
   </fileSets>
 </assembly>

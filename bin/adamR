@@ -19,20 +19,18 @@
 
 set -e
 
-# Figure out where ADAM is installed
 SOURCE_DIR=$(dirname ${BASH_SOURCE[0]})
 
 ADAM_CLI_JAR=$(${SOURCE_DIR}/find-adam-assembly.sh)
-ADAM_EGG=$(${SOURCE_DIR}/find-adam-egg.sh)
 
-PYSPARK=$(${SOURCE_DIR}/find-spark.sh pyspark)
-echo "Using PYSPARK=$PYSPARK" 1>&2
+SPARKR=$(${SOURCE_DIR}/find-spark.sh sparkR)
+echo "Using SPARKR=$SPARKR" 1>&2
 
 # submit the job to Spark
-"$PYSPARK" \
+"$SPARKR" \
     --conf spark.serializer=org.apache.spark.serializer.KryoSerializer \
     --conf spark.kryo.registrator=org.bdgenomics.adam.serialization.ADAMKryoRegistrator \
     --jars ${ADAM_CLI_JAR} \
     --driver-class-path ${ADAM_CLI_JAR} \
-    --py-files ${ADAM_EGG} \
     "$@"
+

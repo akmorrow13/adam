@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 #
 # Licensed to Big Data Genomics (BDG) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,22 +16,16 @@
 # limitations under the License.
 #
 
-set -e
+from bdgenomics.adam.adamContext import ADAMContext
 
-# Figure out where ADAM is installed
-SOURCE_DIR=$(dirname ${BASH_SOURCE[0]})
+from pyspark.context import SparkContext
 
-ADAM_CLI_JAR=$(${SOURCE_DIR}/find-adam-assembly.sh)
-ADAM_EGG=$(${SOURCE_DIR}/find-adam-egg.sh)
+sc = SparkContext('local')
+ac = ADAMContext(sc)
 
-PYSPARK=$(${SOURCE_DIR}/find-spark.sh pyspark)
-echo "Using PYSPARK=$PYSPARK" 1>&2
+reads = ac.loadAlignments("adam-core/src/test/resources/small.sam").toDF().count()
 
-# submit the job to Spark
-"$PYSPARK" \
-    --conf spark.serializer=org.apache.spark.serializer.KryoSerializer \
-    --conf spark.kryo.registrator=org.bdgenomics.adam.serialization.ADAMKryoRegistrator \
-    --jars ${ADAM_CLI_JAR} \
-    --driver-class-path ${ADAM_CLI_JAR} \
-    --py-files ${ADAM_EGG} \
-    "$@"
+if reads == 20:
+    exit(0)
+else:
+    exit(1)
